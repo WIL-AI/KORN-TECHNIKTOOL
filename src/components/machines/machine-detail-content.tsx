@@ -3,8 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import type { Machine } from "@/lib/demo-data";
-import { getMachineById, deleteMachine, isDeletable } from "@/lib/machine-store";
+import type { Machine, MaintenanceInterval } from "@/lib/demo-data";
+import {
+  getMachineById,
+  deleteMachine,
+  isDeletable,
+  getIntervalsForMachine,
+  addInterval,
+  deleteInterval,
+  completeInterval,
+} from "@/lib/machine-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +41,9 @@ import {
   CheckCircle,
   Trash2,
   AlertTriangle,
+  Clock,
+  Check,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadAndProcessDocument } from "@/lib/ai/documents";
@@ -66,6 +77,7 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
 
   useEffect(() => {
     setMachine(getMachineById(machineId));
+    setIntervals(getIntervalsForMachine(machineId));
     setLoaded(true);
   }, [machineId]);
 
@@ -85,6 +97,13 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Interval state
+  const [intervals, setIntervals] = useState<MaintenanceInterval[]>([]);
+  const [intervalDialogOpen, setIntervalDialogOpen] = useState(false);
+  const [newIntervalLabel, setNewIntervalLabel] = useState("");
+  const [newIntervalDue, setNewIntervalDue] = useState("");
+  const [newIntervalMonths, setNewIntervalMonths] = useState("");
 
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -143,6 +162,40 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     deleteMachine(machineId);
     setDeleteDialogOpen(false);
     router.push("/machines" as never);
+  }
+
+  function handleAddInterval() {
+    if (!newIntervalLabel.trim() || !newIntervalDue) return;
+    const updated = addInterval({
+      machineId,
+      label: newIntervalLabel,
+      dueDate: newIntervalDue,
+      intervalMonths: newIntervalMonths ? Number(newIntervalMonths) : null,
+      lastCompleted: null,
+    });
+    setIntervals(updated);
+    setNewIntervalLabel("");
+    setNewIntervalDue("");
+    setNewIntervalMonths("");
+    setIntervalDialogOpen(false);
+  }
+
+  function handleCompleteInterval(id: string) {
+    completeInterval(id);
+    setIntervals(getIntervalsForMachine(machineId));
+  }
+
+  function handleDeleteInterval(id: string) {
+    deleteInterval(id);
+    setIntervals(getIntervalsForMachine(machineId));
+  }
+
+  function getDaysUntilDue(dueDate: string): number {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   }
 
   const qrUrl = typeof window !== "undefined"
@@ -263,6 +316,10 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
             <FileText className="h-4 w-4" />
             {t("documents")}
           </TabsTrigger>
+          <TabsTrigger value="intervals" className="flex-1 gap-2 rounded-lg">
+            <Clock className="h-4 w-4" />
+            {t("intervals")}
+          </TabsTrigger>
           <TabsTrigger value="maintenance" className="flex-1 gap-2 rounded-lg">
             <ClipboardList className="h-4 w-4" />
             {t("maintenanceLog")}
@@ -347,6 +404,146 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
           ) : (
             <div className="mt-8 text-center text-sm text-muted-foreground">
               {t("noDocuments")}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Intervals Tab */}
+        <TabsContent value="intervals" className="mt-4">
+          <Dialog open={intervalDialogOpen} onOpenChange={setIntervalDialogOpen}>
+            <DialogTrigger className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              <Plus className="h-4 w-4" />
+              {t("addInterval")}
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t("addInterval")}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    {t("intervalLabel")}
+                  </label>
+                  <Input
+                    value={newIntervalLabel}
+                    onChange={(e) => setNewIntervalLabel(e.target.value)}
+                    placeholder={t("intervalLabelPlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    {t("dueDate")}
+                  </label>
+                  <Input
+                    type="date"
+                    value={newIntervalDue}
+                    onChange={(e) => setNewIntervalDue(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    {t("intervalMonths")}
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={newIntervalMonths}
+                    onChange={(e) => setNewIntervalMonths(e.target.value)}
+                    placeholder={t("intervalMonthsHint")}
+                  />
+                </div>
+                <Button onClick={handleAddInterval} className="w-full rounded-xl">
+                  {tCommon("save")}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {intervals.length > 0 ? (
+            <div className="mt-4 space-y-2">
+              {intervals.map((interval) => {
+                const days = getDaysUntilDue(interval.dueDate);
+                const isOverdue = days < 0;
+                const isDueToday = days === 0;
+                const isDueSoon = days > 0 && days <= 14;
+
+                return (
+                  <div
+                    key={interval.id}
+                    className={cn(
+                      "rounded-xl border p-3",
+                      isOverdue && "border-red-300 bg-red-50",
+                      isDueSoon && !isOverdue && "border-yellow-300 bg-yellow-50"
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{interval.label}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {interval.dueDate}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            {interval.intervalMonths ? (
+                              <>
+                                <RefreshCw className="h-3 w-3" />
+                                {interval.intervalMonths} {t("recurring")}
+                              </>
+                            ) : (
+                              t("oneTime")
+                            )}
+                          </span>
+                        </div>
+                        {interval.lastCompleted && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t("lastCompleted")}: {interval.lastCompleted}
+                          </p>
+                        )}
+                        {isOverdue && (
+                          <p className="mt-1 text-xs font-semibold text-red-600">
+                            {t("overdue")} ({Math.abs(days)}d)
+                          </p>
+                        )}
+                        {isDueToday && (
+                          <p className="mt-1 text-xs font-semibold text-yellow-700">
+                            {t("dueToday")}
+                          </p>
+                        )}
+                        {isDueSoon && !isDueToday && (
+                          <p className="mt-1 text-xs text-yellow-700">
+                            {t("dueSoon", { days })}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-green-600 hover:bg-green-100 hover:text-green-700"
+                          onClick={() => handleCompleteInterval(interval.id)}
+                          title={t("markComplete")}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-destructive hover:bg-red-100"
+                          onClick={() => handleDeleteInterval(interval.id)}
+                          title={tCommon("delete")}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="mt-8 text-center text-sm text-muted-foreground">
+              {t("noIntervals")}
             </div>
           )}
         </TabsContent>

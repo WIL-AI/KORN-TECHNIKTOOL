@@ -11,7 +11,7 @@ import { Send, Bot, User, Sparkles, AlertCircle } from "lucide-react";
 import { demoMachines } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
 import { sendRagMessage, type ChatMessage } from "@/lib/ai/rag";
-import { isGeminiConfigured } from "@/lib/ai/gemini";
+import { isLLMConfigured } from "@/lib/ai/llm-provider";
 
 export function ChatContent() {
   const t = useTranslations("chat");
@@ -27,7 +27,7 @@ export function ChatContent() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const selectedMachine = demoMachines.find((m) => m.id === context);
-  const geminiReady = isGeminiConfigured();
+  const geminiReady = isLLMConfigured();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -65,7 +65,7 @@ export function ChatContent() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
 
-      if (message === "GEMINI_NOT_CONFIGURED") {
+      if (message === "LLM_NOT_CONFIGURED") {
         setError(t("notConfigured"));
       } else {
         setError(t("errorOccurred"));

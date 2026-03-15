@@ -28,7 +28,12 @@
     "totalMachines": "Total Machines",
     "recentActivity": "Recent Activity",
     "pendingMaintenance": "Pending Maintenance",
-    "documentsUploaded": "Documents Uploaded"
+    "documentsUploaded": "Documents Uploaded",
+    "dueReminders": "Due Maintenance",
+    "noDueReminders": "No maintenance due",
+    "overdueCount": "Overdue",
+    "dueIn": "in {days} days",
+    "dueTodayShort": "Today"
   },
   "machines": {
     "title": "Machines",
@@ -53,7 +58,22 @@
     "deleteConfirmMessage": "The machine \"{name}\" and all associated data will be permanently deleted. This action cannot be undone.",
     "deleteConfirmLabel": "Type \"Ja\" to confirm deletion:",
     "deleteConfirmPlaceholder": "Ja",
-    "deleteConfirm": "Delete permanently"
+    "deleteConfirm": "Delete permanently",
+    "intervals": "Intervals",
+    "addInterval": "Add Interval",
+    "intervalLabel": "Label",
+    "intervalLabelPlaceholder": "e.g. Safety Inspection",
+    "dueDate": "Due Date",
+    "intervalMonths": "Recurrence (months)",
+    "intervalMonthsHint": "Leave empty for one-time",
+    "noIntervals": "No intervals yet",
+    "markComplete": "Complete",
+    "overdue": "Overdue",
+    "dueSoon": "Due in {days} days",
+    "dueToday": "Due today",
+    "lastCompleted": "Last completed",
+    "recurring": "Recurring",
+    "oneTime": "One-time"
   },
   "scanner": {
     "title": "QR Scanner",

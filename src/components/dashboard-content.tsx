@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { demoMachines } from "@/lib/demo-data";
+import type { Machine } from "@/lib/demo-data";
+import { getAllMachines, getDueReminders, type DueReminder } from "@/lib/machine-store";
 import {
   Wrench,
   FileText,
@@ -10,8 +12,9 @@ import {
   Activity,
   ChevronRight,
   Plus,
+  Clock,
+  Calendar,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -21,21 +24,22 @@ const statusColors = {
   offline: "bg-red-500",
 };
 
-const statusLabels: Record<string, Record<string, string>> = {
-  de: { online: "Online", maintenance: "Wartung", offline: "Offline" },
-  en: { online: "Online", maintenance: "Maintenance", offline: "Offline" },
-};
-
 export function DashboardContent() {
   const t = useTranslations("dashboard");
   const tMachines = useTranslations("machines");
   const tNav = useTranslations("nav");
 
-  const onlineCount = demoMachines.filter((m) => m.status === "online").length;
-  const maintenanceCount = demoMachines.filter(
-    (m) => m.status === "maintenance"
-  ).length;
-  const totalDocs = demoMachines.reduce((a, m) => a + m.documentsCount, 0);
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [reminders, setReminders] = useState<DueReminder[]>([]);
+
+  useEffect(() => {
+    setMachines(getAllMachines());
+    setReminders(getDueReminders(30));
+  }, []);
+
+  const onlineCount = machines.filter((m) => m.status === "online").length;
+  const totalDocs = machines.reduce((a, m) => a + m.documentsCount, 0);
+  const overdueCount = reminders.filter((r) => r.isOverdue).length;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
@@ -51,7 +55,7 @@ export function DashboardContent() {
           </div>
           <p className="text-xs text-muted-foreground">{t("totalMachines")}</p>
           <p className="text-2xl font-semibold text-primary">
-            {demoMachines.length}
+            {machines.length}
           </p>
         </div>
         <div className="rounded-2xl border bg-card p-4">
@@ -61,7 +65,7 @@ export function DashboardContent() {
           <p className="text-xs text-muted-foreground">
             {t("pendingMaintenance")}
           </p>
-          <p className="text-2xl font-semibold">{maintenanceCount}</p>
+          <p className="text-2xl font-semibold">{reminders.length}</p>
         </div>
         <div className="rounded-2xl border bg-card p-4">
           <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
@@ -73,13 +77,65 @@ export function DashboardContent() {
           <p className="text-2xl font-semibold">{totalDocs}</p>
         </div>
         <div className="rounded-2xl border bg-card p-4">
-          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10">
-            <Activity className="h-4 w-4 text-green-600" />
+          <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
+            <Clock className="h-4 w-4 text-red-600" />
           </div>
-          <p className="text-xs text-muted-foreground">{t("recentActivity")}</p>
-          <p className="text-2xl font-semibold">{onlineCount}</p>
+          <p className="text-xs text-muted-foreground">{t("overdueCount")}</p>
+          <p className={cn("text-2xl font-semibold", overdueCount > 0 && "text-red-600")}>
+            {overdueCount}
+          </p>
         </div>
       </div>
+
+      {/* Due Reminders */}
+      {reminders.length > 0 && (
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold">{t("dueReminders")}</h2>
+          <div className="space-y-2">
+            {reminders.map((reminder) => (
+              <Link
+                key={reminder.interval.id}
+                href={`/machines/${reminder.machine.id}` as never}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent",
+                  reminder.isOverdue && "border-red-300 bg-red-50",
+                  !reminder.isOverdue && reminder.daysUntilDue <= 7 && "border-yellow-300 bg-yellow-50"
+                )}
+              >
+                <div className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl",
+                  reminder.isOverdue ? "bg-red-100" : "bg-yellow-100"
+                )}>
+                  {reminder.isOverdue ? (
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                  ) : (
+                    <Calendar className="h-5 w-5 text-yellow-600" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">
+                    {reminder.machine.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {reminder.interval.label}
+                  </p>
+                  <p className={cn(
+                    "text-xs font-medium mt-0.5",
+                    reminder.isOverdue ? "text-red-600" : "text-yellow-700"
+                  )}>
+                    {reminder.isOverdue
+                      ? `${tMachines("overdue")} (${Math.abs(reminder.daysUntilDue)}d)`
+                      : reminder.daysUntilDue === 0
+                        ? t("dueTodayShort")
+                        : t("dueIn", { days: reminder.daysUntilDue })}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Machines */}
       <div className="mb-4 flex items-center justify-between">
@@ -93,7 +149,7 @@ export function DashboardContent() {
       </div>
 
       <div className="space-y-2">
-        {demoMachines.slice(0, 3).map((machine) => (
+        {machines.slice(0, 3).map((machine) => (
           <Link
             key={machine.id}
             href={`/machines/${machine.id}` as never}

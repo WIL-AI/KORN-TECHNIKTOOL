@@ -28,7 +28,12 @@
     "totalMachines": "Maschinen gesamt",
     "recentActivity": "Letzte Aktivitäten",
     "pendingMaintenance": "Offene Wartungen",
-    "documentsUploaded": "Dokumente hochgeladen"
+    "documentsUploaded": "Dokumente hochgeladen",
+    "dueReminders": "Fällige Wartungen",
+    "noDueReminders": "Keine fälligen Wartungen",
+    "overdueCount": "Überfällig",
+    "dueIn": "in {days} Tagen",
+    "dueTodayShort": "Heute"
   },
   "machines": {
     "title": "Maschinen",
@@ -53,7 +58,22 @@
     "deleteConfirmMessage": "Die Maschine \"{name}\" und alle zugehörigen Daten werden unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
     "deleteConfirmLabel": "Tippen Sie \"Ja\" ein, um das Löschen zu bestätigen:",
     "deleteConfirmPlaceholder": "Ja",
-    "deleteConfirm": "Endgültig löschen"
+    "deleteConfirm": "Endgültig löschen",
+    "intervals": "Intervalle",
+    "addInterval": "Intervall hinzufügen",
+    "intervalLabel": "Bezeichnung",
+    "intervalLabelPlaceholder": "z.B. TÜV-Prüfung",
+    "dueDate": "Fälligkeitsdatum",
+    "intervalMonths": "Wiederholung (Monate)",
+    "intervalMonthsHint": "Leer lassen für einmalig",
+    "noIntervals": "Noch keine Intervalle vorhanden",
+    "markComplete": "Erledigt",
+    "overdue": "Überfällig",
+    "dueSoon": "Fällig in {days} Tagen",
+    "dueToday": "Heute fällig",
+    "lastCompleted": "Zuletzt erledigt",
+    "recurring": "Wiederkehrend",
+    "oneTime": "Einmalig"
   },
   "scanner": {
     "title": "QR-Scanner",

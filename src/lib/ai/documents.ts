@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import { generateEmbedding } from "./gemini";
+import { getLLMProvider } from "./llm-provider";
 
 const CHUNK_SIZE = 800;
 const CHUNK_OVERLAP = 100;
@@ -110,7 +110,8 @@ export async function uploadAndProcessDocument(
         const chunks = chunkText(text);
 
         for (const chunk of chunks) {
-          const embedding = await generateEmbedding(chunk);
+          const provider = await getLLMProvider();
+          const embedding = await provider.embed(chunk);
 
           await supabase.from("document_embeddings").insert({
             document_id: doc.id,

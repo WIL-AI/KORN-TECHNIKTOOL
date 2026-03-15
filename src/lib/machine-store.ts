@@ -1,13 +1,15 @@
-import { demoMachines, type Machine } from "./demo-data";
+import { demoMachines, demoIntervals, type Machine, type MaintenanceInterval } from "./demo-data";
 
 const STORAGE_KEY = "korn-machines";
+const INTERVALS_KEY = "korn-intervals";
 
 /** Max pre-generated machine detail pages (see generateStaticParams) */
 export const MAX_MACHINE_PAGES = 50;
 
-/**
- * Get user-added machines from localStorage.
- */
+// ============================================================
+// MACHINES
+// ============================================================
+
 function getUserMachines(): Machine[] {
   if (typeof window === "undefined") return [];
   try {
@@ -18,31 +20,19 @@ function getUserMachines(): Machine[] {
   }
 }
 
-/**
- * Save user-added machines to localStorage.
- */
 function setUserMachines(machines: Machine[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(machines));
 }
 
-/**
- * Get all machines (demo + user-added).
- */
 export function getAllMachines(): Machine[] {
   return [...getUserMachines(), ...demoMachines];
 }
 
-/**
- * Find a machine by ID (searches both demo and user-added).
- */
 export function getMachineById(id: string): Machine | undefined {
   return getAllMachines().find((m) => m.id === id);
 }
 
-/**
- * Get the next sequential ID for a new machine.
- */
 function getNextId(): string {
   const userMachines = getUserMachines();
   const demoIds = demoMachines.map((m) => Number(m.id));
@@ -52,10 +42,6 @@ function getNextId(): string {
   return String(maxId + 1);
 }
 
-/**
- * Add a new machine with a sequential ID and persist to localStorage.
- * Returns the updated full list.
- */
 export function addMachine(machineData: Omit<Machine, "id">): Machine[] {
   const userMachines = getUserMachines();
   const machine: Machine = { id: getNextId(), ...machineData };
@@ -64,29 +50,151 @@ export function addMachine(machineData: Omit<Machine, "id">): Machine[] {
   return getAllMachines();
 }
 
-/**
- * Delete a machine from localStorage (demo machines cannot be deleted).
- * Returns true if deleted.
- */
 export function deleteMachine(id: string): boolean {
   const userMachines = getUserMachines();
   const index = userMachines.findIndex((m) => m.id === id);
-  if (index === -1) return false; // demo machines can't be deleted
+  if (index === -1) return false;
   userMachines.splice(index, 1);
   setUserMachines(userMachines);
   return true;
 }
 
-/**
- * Check if a machine is deletable (only user-added machines).
- */
 export function isDeletable(id: string): boolean {
   return getUserMachines().some((m) => m.id === id);
 }
 
+// ============================================================
+// MAINTENANCE INTERVALS
+// ============================================================
+
+function getUserIntervals(): MaintenanceInterval[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(INTERVALS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setUserIntervals(intervals: MaintenanceInterval[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(INTERVALS_KEY, JSON.stringify(intervals));
+}
+
+export function getAllIntervals(): MaintenanceInterval[] {
+  return [...getUserIntervals(), ...demoIntervals];
+}
+
+export function getIntervalsForMachine(machineId: string): MaintenanceInterval[] {
+  return getAllIntervals().filter((i) => i.machineId === machineId);
+}
+
+export function addInterval(data: Omit<MaintenanceInterval, "id">): MaintenanceInterval[] {
+  const intervals = getUserIntervals();
+  const interval: MaintenanceInterval = {
+    id: `i-${Date.now()}`,
+    ...data,
+  };
+  intervals.unshift(interval);
+  setUserIntervals(intervals);
+  return getIntervalsForMachine(data.machineId);
+}
+
+export function deleteInterval(id: string): boolean {
+  const intervals = getUserIntervals();
+  const index = intervals.findIndex((i) => i.id === id);
+  if (index === -1) return false;
+  intervals.splice(index, 1);
+  setUserIntervals(intervals);
+  return true;
+}
+
+export function completeInterval(id: string): void {
+  // Check user intervals first
+  const userIntervals = getUserIntervals();
+  const userIdx = userIntervals.findIndex((i) => i.id === id);
+
+  const today = new Date().toISOString().split("T")[0];
+
+  if (userIdx !== -1) {
+    userIntervals[userIdx].lastCompleted = today;
+    if (userIntervals[userIdx].intervalMonths) {
+      const next = new Date();
+      next.setMonth(next.getMonth() + userIntervals[userIdx].intervalMonths!);
+      userIntervals[userIdx].dueDate = next.toISOString().split("T")[0];
+    }
+    setUserIntervals(userIntervals);
+  } else {
+    // For demo intervals, copy to user storage with updated dates
+    const demoInterval = demoIntervals.find((i) => i.id === id);
+    if (!demoInterval) return;
+
+    const updated = { ...demoInterval, lastCompleted: today };
+    if (updated.intervalMonths) {
+      const next = new Date();
+      next.setMonth(next.getMonth() + updated.intervalMonths);
+      updated.dueDate = next.toISOString().split("T")[0];
+    }
+    // Store as user interval (overrides demo)
+    const intervals = getUserIntervals();
+    intervals.push(updated);
+    setUserIntervals(intervals);
+  }
+}
+
+export interface DueReminder {
+  interval: MaintenanceInterval;
+  machine: Machine;
+  daysUntilDue: number;
+  isOverdue: boolean;
+}
+
 /**
- * Notify listeners when machines change.
+ * Get all due/overdue maintenance reminders, sorted by urgency.
  */
+export function getDueReminders(withinDays = 14): DueReminder[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const allIntervals = getAllIntervals();
+
+  // Deduplicate: user intervals override demo intervals with same ID
+  const userIds = new Set(getUserIntervals().map((i) => i.id));
+  const deduped = allIntervals.filter((i) => {
+    if (userIds.has(i.id)) {
+      return getUserIntervals().some((u) => u.id === i.id);
+    }
+    return true;
+  });
+
+  const reminders: DueReminder[] = [];
+
+  for (const interval of deduped) {
+    const dueDate = new Date(interval.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
+    const diffMs = dueDate.getTime() - today.getTime();
+    const daysUntilDue = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDue <= withinDays) {
+      const machine = getMachineById(interval.machineId);
+      if (machine) {
+        reminders.push({
+          interval,
+          machine,
+          daysUntilDue,
+          isOverdue: daysUntilDue < 0,
+        });
+      }
+    }
+  }
+
+  return reminders.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+}
+
+// ============================================================
+// LISTENERS
+// ============================================================
+
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
@@ -99,9 +207,6 @@ function notifyListeners() {
   listeners.forEach((l) => l());
 }
 
-/**
- * Add a machine and notify listeners.
- */
 export function addMachineAndNotify(machineData: Omit<Machine, "id">): Machine[] {
   const result = addMachine(machineData);
   notifyListeners();

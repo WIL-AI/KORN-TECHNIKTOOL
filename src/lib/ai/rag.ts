@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import { generateEmbedding, chatWithGemini, isGeminiConfigured } from "./gemini";
+import { getLLMProvider, isLLMConfigured } from "./llm-provider";
 import type { MatchDocumentResult } from "@/lib/supabase/types";
 
 const SYSTEM_PROMPT_DE = `Du bist ein hilfreicher KI-Assistent für die digitale Maschinenakte der Firma KORN.
@@ -31,7 +31,8 @@ async function searchDocuments(
   matchCount = 5
 ): Promise<MatchDocumentResult[]> {
   try {
-    const queryEmbedding = await generateEmbedding(query);
+    const provider = await getLLMProvider();
+    const queryEmbedding = await provider.embed(query);
 
     const { data, error } = await supabase.rpc("match_documents", {
       query_embedding: queryEmbedding,
@@ -74,8 +75,8 @@ export async function sendRagMessage(
   history: ChatMessage[],
   locale: string = "de"
 ): Promise<string> {
-  if (!isGeminiConfigured()) {
-    throw new Error("GEMINI_NOT_CONFIGURED");
+  if (!isLLMConfigured()) {
+    throw new Error("LLM_NOT_CONFIGURED");
   }
 
   // Search for relevant documents
@@ -85,17 +86,14 @@ export async function sendRagMessage(
   );
   const context = buildContext(matches);
 
-  // Convert chat history to Gemini format
-  const geminiHistory = history
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({
-      role: (m.role === "assistant" ? "model" : "user") as "user" | "model",
-      parts: [{ text: m.content }],
-    }));
-
   const systemPrompt = locale === "en" ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_DE;
 
-  return chatWithGemini(userMessage, context, geminiHistory, systemPrompt);
+  const provider = await getLLMProvider();
+  return provider.chat(userMessage, {
+    systemInstruction: systemPrompt,
+    history: history.map((m) => ({ role: m.role, content: m.content })),
+    context,
+  });
 }
 
 /**
