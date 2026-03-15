@@ -2,6 +2,8 @@ import { demoMachines, demoIntervals, type Machine, type MaintenanceInterval } f
 
 const STORAGE_KEY = "korn-machines";
 const INTERVALS_KEY = "korn-intervals";
+const LOGS_KEY = "korn-maintenance-logs";
+const DOCS_KEY = "korn-documents";
 
 /** Max pre-generated machine detail pages (see generateStaticParams) */
 export const MAX_MACHINE_PAGES = 50;
@@ -26,7 +28,9 @@ function setUserMachines(machines: Machine[]) {
 }
 
 export function getAllMachines(): Machine[] {
-  return [...getUserMachines(), ...demoMachines];
+  const deletedIds = getDeletedDemoIds();
+  const activeDemos = demoMachines.filter((m) => !deletedIds.includes(m.id));
+  return [...getUserMachines(), ...activeDemos];
 }
 
 export function getMachineById(id: string): Machine | undefined {
@@ -50,17 +54,46 @@ export function addMachine(machineData: Omit<Machine, "id">): Machine[] {
   return getAllMachines();
 }
 
-export function deleteMachine(id: string): boolean {
-  const userMachines = getUserMachines();
-  const index = userMachines.findIndex((m) => m.id === id);
-  if (index === -1) return false;
-  userMachines.splice(index, 1);
-  setUserMachines(userMachines);
-  return true;
+const DELETED_DEMOS_KEY = "korn-deleted-demos";
+
+function getDeletedDemoIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(DELETED_DEMOS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
 }
 
-export function isDeletable(id: string): boolean {
-  return getUserMachines().some((m) => m.id === id);
+function setDeletedDemoIds(ids: string[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DELETED_DEMOS_KEY, JSON.stringify(ids));
+}
+
+export function deleteMachine(id: string): boolean {
+  // Try user machines first
+  const userMachines = getUserMachines();
+  const index = userMachines.findIndex((m) => m.id === id);
+  if (index !== -1) {
+    userMachines.splice(index, 1);
+    setUserMachines(userMachines);
+    return true;
+  }
+  // If demo machine, mark as deleted
+  if (demoMachines.some((m) => m.id === id)) {
+    const deleted = getDeletedDemoIds();
+    if (!deleted.includes(id)) {
+      deleted.push(id);
+      setDeletedDemoIds(deleted);
+    }
+    return true;
+  }
+  return false;
+}
+
+export function isDeletable(_id: string): boolean {
+  return true;
 }
 
 // ============================================================
@@ -189,6 +222,118 @@ export function getDueReminders(withinDays = 14): DueReminder[] {
   }
 
   return reminders.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+}
+
+// ============================================================
+// MAINTENANCE LOGS
+// ============================================================
+
+export interface MaintenanceLog {
+  id: string;
+  machineId: string;
+  note: string;
+  date: string;
+}
+
+const demoLogs: MaintenanceLog[] = [
+  { id: "log-d1", machineId: "1", note: "Ölwechsel durchgeführt, Filter getauscht.", date: "2026-03-10" },
+  { id: "log-d2", machineId: "1", note: "Kalibrierung der Achsen.", date: "2026-02-28" },
+  { id: "log-d3", machineId: "2", note: "Spindellager geprüft und geschmiert.", date: "2026-03-05" },
+  { id: "log-d4", machineId: "3", note: "Schweißdrahtvorschub justiert.", date: "2026-02-20" },
+];
+
+function getUserLogs(): MaintenanceLog[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(LOGS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setUserLogs(logs: MaintenanceLog[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+}
+
+export function getLogsForMachine(machineId: string): MaintenanceLog[] {
+  const userLogs = getUserLogs().filter((l) => l.machineId === machineId);
+  const demo = demoLogs.filter((l) => l.machineId === machineId);
+  return [...userLogs, ...demo];
+}
+
+export function addLog(machineId: string, note: string): MaintenanceLog[] {
+  const logs = getUserLogs();
+  logs.unshift({
+    id: `log-${Date.now()}`,
+    machineId,
+    note,
+    date: new Date().toISOString().split("T")[0],
+  });
+  setUserLogs(logs);
+  return getLogsForMachine(machineId);
+}
+
+// ============================================================
+// LOCAL DOCUMENTS (localStorage fallback)
+// ============================================================
+
+export interface LocalDocument {
+  id: string;
+  machineId: string;
+  fileName: string;
+  fileSize: string;
+  type: "document" | "photo";
+  date: string;
+}
+
+function getUserDocs(): LocalDocument[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(DOCS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setUserDocs(docs: LocalDocument[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DOCS_KEY, JSON.stringify(docs));
+}
+
+export function getDocsForMachine(machineId: string): LocalDocument[] {
+  return getUserDocs().filter((d) => d.machineId === machineId);
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function addLocalDoc(machineId: string, fileName: string, fileSize: number, type: "document" | "photo"): LocalDocument[] {
+  const docs = getUserDocs();
+  docs.unshift({
+    id: `doc-${Date.now()}`,
+    machineId,
+    fileName,
+    fileSize: formatFileSize(fileSize),
+    type,
+    date: new Date().toISOString().split("T")[0],
+  });
+  setUserDocs(docs);
+  return getDocsForMachine(machineId);
+}
+
+export function deleteLocalDoc(id: string): boolean {
+  const docs = getUserDocs();
+  const index = docs.findIndex((d) => d.id === id);
+  if (index === -1) return false;
+  docs.splice(index, 1);
+  setUserDocs(docs);
+  return true;
 }
 
 // ============================================================

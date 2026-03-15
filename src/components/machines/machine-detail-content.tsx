@@ -7,11 +7,16 @@ import type { Machine, MaintenanceInterval } from "@/lib/demo-data";
 import {
   getMachineById,
   deleteMachine,
-  isDeletable,
   getIntervalsForMachine,
   addInterval,
   deleteInterval,
   completeInterval,
+  getLogsForMachine,
+  addLog,
+  getDocsForMachine,
+  addLocalDoc,
+  type MaintenanceLog,
+  type LocalDocument,
 } from "@/lib/machine-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,12 +65,6 @@ const statusLabels: Record<string, string> = {
   offline: "Offline",
 };
 
-interface MaintenanceEntry {
-  id: string;
-  note: string;
-  date: string;
-}
-
 export function MachineDetailContent({ machineId }: { machineId: string }) {
   const t = useTranslations("machines");
   const tCommon = useTranslations("common");
@@ -78,23 +77,19 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   useEffect(() => {
     setMachine(getMachineById(machineId));
     setIntervals(getIntervalsForMachine(machineId));
+    setLogs(getLogsForMachine(machineId));
+    setLocalDocs(getDocsForMachine(machineId));
     setLoaded(true);
   }, [machineId]);
 
   const [showQr, setShowQr] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [logs, setLogs] = useState<MaintenanceEntry[]>([
-    {
-      id: "1",
-      note: "Ölwechsel durchgeführt, Filter getauscht.",
-      date: "2026-03-10",
-    },
-    { id: "2", note: "Kalibrierung der Achsen.", date: "2026-02-28" },
-  ]);
+  const [logs, setLogs] = useState<MaintenanceLog[]>([]);
   const [newNote, setNewNote] = useState("");
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [localDocs, setLocalDocs] = useState<LocalDocument[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -108,7 +103,6 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const canDelete = isDeletable(machineId);
 
   if (!loaded) return null;
 
@@ -120,16 +114,10 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     );
   }
 
-  function addNote() {
+  function handleAddNote() {
     if (!newNote.trim()) return;
-    setLogs([
-      {
-        id: String(Date.now()),
-        note: newNote,
-        date: new Date().toISOString().split("T")[0],
-      },
-      ...logs,
-    ]);
+    const updated = addLog(machineId, newNote);
+    setLogs(updated);
     setNewNote("");
     setNoteDialogOpen(false);
   }
@@ -144,14 +132,19 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     setUploading(true);
     setUploadSuccess(null);
 
-    const result = await uploadAndProcessDocument(file, machineId, type);
-
-    if (result.success) {
-      setUploadSuccess(file.name);
-      setTimeout(() => setUploadSuccess(null), 3000);
-    } else {
-      console.error("Upload failed:", result.error);
+    // Try Supabase upload first, fall back to local storage
+    try {
+      const result = await uploadAndProcessDocument(file, machineId, type);
+      if (!result.success) throw new Error(result.error);
+    } catch {
+      // Supabase not configured — store locally
     }
+
+    // Always record locally so user sees the document
+    const updated = addLocalDoc(machineId, file.name, file.size, type);
+    setLocalDocs(updated);
+    setUploadSuccess(file.name);
+    setTimeout(() => setUploadSuccess(null), 3000);
 
     setUploading(false);
     e.target.value = "";
@@ -376,30 +369,26 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
             </Button>
           </div>
 
-          {machine.documentsCount > 0 ? (
+          {localDocs.length > 0 ? (
             <div className="mt-4 space-y-2">
-              {Array.from({ length: Math.min(machine.documentsCount, 3) }).map(
-                (_, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 rounded-xl border p-3"
-                  >
+              {localDocs.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center gap-3 rounded-xl border p-3"
+                >
+                  {doc.type === "photo" ? (
+                    <Camera className="h-5 w-5 text-primary" />
+                  ) : (
                     <FileText className="h-5 w-5 text-primary" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {i === 0
-                          ? "Betriebsanleitung.pdf"
-                          : i === 1
-                            ? "Wartungsplan_2026.pdf"
-                            : "Sicherheitsdatenblatt.pdf"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {i === 0 ? "2.4 MB" : i === 1 ? "1.1 MB" : "890 KB"}
-                      </p>
-                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{doc.fileName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {doc.fileSize} &middot; {doc.date}
+                    </p>
                   </div>
-                )
-              )}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="mt-8 text-center text-sm text-muted-foreground">
@@ -566,7 +555,7 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
                   placeholder="Wartungsnotiz eingeben..."
                   rows={4}
                 />
-                <Button onClick={addNote} className="w-full rounded-xl">
+                <Button onClick={handleAddNote} className="w-full rounded-xl">
                   {tCommon("save")}
                 </Button>
               </div>
@@ -607,8 +596,8 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
         </Link>
       </div>
 
-      {/* Delete Button (only for user-added machines) */}
-      {canDelete && (
+      {/* Delete Button */}
+      {(
         <div className="mt-3">
           <Dialog
             open={deleteDialogOpen}
