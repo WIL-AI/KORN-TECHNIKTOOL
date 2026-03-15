@@ -42,6 +42,7 @@ export function BottomNav() {
           );
         })}
       </div>
+      <p className="pb-0.5 text-center text-[8px] tracking-wide text-muted-foreground/40">powered by wil-AI</p>
     </nav>
   );
 }
