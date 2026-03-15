@@ -58,6 +58,7 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
 
   const machine = demoMachines.find((m) => m.id === machineId);
   const [showQr, setShowQr] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [logs, setLogs] = useState<MaintenanceEntry[]>([
     {
       id: "1",
@@ -91,7 +92,38 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     setNoteDialogOpen(false);
   }
 
-  const qrUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/machines/${machineId}`;
+  const qrUrl = typeof window !== "undefined"
+    ? `${window.location.origin}${window.location.pathname.split("/").slice(0, 2).join("/")}/machines/${machineId}`
+    : `/machines/${machineId}`;
+
+  async function generateQr() {
+    try {
+      const QRCode = (await import("qrcode")).default;
+      const url = await QRCode.toDataURL(qrUrl, {
+        width: 300,
+        margin: 2,
+        color: { dark: "#B32423", light: "#FFFFFF" },
+      });
+      setQrDataUrl(url);
+    } catch {
+      // fallback - show placeholder
+    }
+  }
+
+  function toggleQr() {
+    if (!showQr && !qrDataUrl) {
+      generateQr();
+    }
+    setShowQr(!showQr);
+  }
+
+  function downloadQr() {
+    if (!qrDataUrl) return;
+    const link = document.createElement("a");
+    link.download = `QR-${machine?.name || "machine"}.png`;
+    link.href = qrDataUrl;
+    link.click();
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
@@ -135,7 +167,7 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
           variant="outline"
           size="sm"
           className="gap-2 rounded-xl"
-          onClick={() => setShowQr(!showQr)}
+          onClick={toggleQr}
         >
           <QrCode className="h-4 w-4" />
           {t("qrCode")}
@@ -145,16 +177,26 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
       {/* QR Code Display */}
       {showQr && (
         <div className="mb-6 rounded-2xl border bg-card p-6 text-center">
-          <div className="mx-auto mb-4 flex h-48 w-48 items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-white">
-            <div className="text-center">
-              <QrCode className="mx-auto mb-2 h-16 w-16 text-primary" />
-              <p className="text-xs text-muted-foreground">
-                {machine.name}
-              </p>
+          {qrDataUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={qrDataUrl}
+              alt={`QR Code - ${machine.name}`}
+              className="mx-auto mb-4 h-48 w-48 rounded-xl"
+            />
+          ) : (
+            <div className="mx-auto mb-4 flex h-48 w-48 items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-white">
+              <QrCode className="h-16 w-16 text-primary/30" />
             </div>
-          </div>
+          )}
           <p className="mb-2 text-xs text-muted-foreground">{qrUrl}</p>
-          <Button variant="outline" size="sm" className="gap-2 rounded-xl">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl"
+            onClick={downloadQr}
+            disabled={!qrDataUrl}
+          >
             <Download className="h-4 w-4" />
             {t("downloadQr")}
           </Button>
