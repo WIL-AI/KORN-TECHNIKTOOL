@@ -1,34 +1,44 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useState, useRef, useEffect } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, Sparkles } from "lucide-react";
+import { Send, Bot, User, Sparkles, AlertCircle } from "lucide-react";
 import { demoMachines } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
+import { sendRagMessage, type ChatMessage } from "@/lib/ai/rag";
+import { isGeminiConfigured } from "@/lib/ai/gemini";
 
 export function ChatContent() {
   const t = useTranslations("chat");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const locale = useLocale();
+  const searchParams = useSearchParams();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [context, setContext] = useState<string>("all");
+  const [context, setContext] = useState<string>(
+    searchParams.get("machine") || "all"
+  );
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const selectedMachine = demoMachines.find((m) => m.id === context);
+  const geminiReady = isGeminiConfigured();
 
-  function handleSend() {
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isLoading]);
+
+  async function handleSend() {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: String(Date.now()),
       role: "user",
       content: input,
@@ -36,26 +46,40 @@ export function ChatContent() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    setError(null);
 
-    // Simulated AI response (will be replaced with actual RAG in Step 5)
-    setTimeout(() => {
-      const response: Message = {
+    try {
+      const responseText = await sendRagMessage(
+        userMessage.content,
+        context === "all" ? null : context,
+        messages,
+        locale
+      );
+
+      const response: ChatMessage = {
         id: String(Date.now() + 1),
         role: "assistant",
-        content:
-          context === "all"
-            ? `Basierend auf der Dokumentation aller ${demoMachines.length} Maschinen: Diese Funktion wird mit der Gemini API und RAG-Pipeline verbunden, sobald Supabase konfiguriert ist.`
-            : `Für die ${selectedMachine?.name}: Diese Funktion wird mit der Gemini API und RAG-Pipeline verbunden, sobald Supabase konfiguriert ist.`,
+        content: responseText,
       };
       setMessages((prev) => [...prev, response]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+
+      if (message === "GEMINI_NOT_CONFIGURED") {
+        setError(t("notConfigured"));
+      } else {
+        setError(t("errorOccurred"));
+        console.error("Chat error:", err);
+      }
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   }
 
   return (
     <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-4xl flex-col px-4 py-4">
       {/* Context Selector */}
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge
           variant={context === "all" ? "default" : "outline"}
           className="cursor-pointer rounded-lg px-3 py-1"
@@ -75,8 +99,16 @@ export function ChatContent() {
         ))}
       </div>
 
+      {/* API Status Warning */}
+      {!geminiReady && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-yellow-300 bg-yellow-50 px-4 py-2 text-sm text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-200">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {t("notConfigured")}
+        </div>
+      )}
+
       {/* Messages */}
-      <ScrollArea className="flex-1 rounded-2xl border bg-card p-4">
+      <ScrollArea className="flex-1 rounded-2xl border bg-card p-4" ref={scrollRef}>
         {messages.length === 0 ? (
           <div className="flex h-full min-h-[40vh] flex-col items-center justify-center text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -86,6 +118,11 @@ export function ChatContent() {
             <p className="max-w-sm text-sm text-muted-foreground">
               {t("welcome")}
             </p>
+            {selectedMachine && (
+              <p className="mt-2 max-w-sm text-xs text-primary">
+                {t("contextMachine")}: {selectedMachine.name}
+              </p>
+            )}
             <p className="mt-2 max-w-sm text-xs text-muted-foreground">
               {t("noDocumentsHint")}
             </p>
@@ -116,7 +153,7 @@ export function ChatContent() {
                 </div>
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
+                    "max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm",
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted"
@@ -131,9 +168,17 @@ export function ChatContent() {
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
                   <Bot className="h-4 w-4" />
                 </div>
-                <div className="rounded-2xl bg-muted px-4 py-2 text-sm text-muted-foreground">
-                  {t("thinking")}
+                <div className="flex items-center gap-1 rounded-2xl bg-muted px-4 py-2 text-sm text-muted-foreground">
+                  <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-current [animation-delay:0ms]" />
+                  <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-current [animation-delay:150ms]" />
+                  <span className="inline-block h-2 w-2 animate-bounce rounded-full bg-current [animation-delay:300ms]" />
                 </div>
+              </div>
+            )}
+            {error && (
+              <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {error}
               </div>
             )}
           </div>

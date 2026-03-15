@@ -1,15 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { demoMachines } from "@/lib/demo-data";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -30,8 +27,11 @@ import {
   Plus,
   MessageCircle,
   Download,
+  Loader2,
+  CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { uploadAndProcessDocument } from "@/lib/ai/documents";
 
 const statusColors = {
   online: "bg-green-500",
@@ -69,6 +69,10 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   ]);
   const [newNote, setNewNote] = useState("");
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   if (!machine) {
     return (
@@ -90,6 +94,30 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     ]);
     setNewNote("");
     setNoteDialogOpen(false);
+  }
+
+  async function handleFileUpload(
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "document" | "photo"
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadSuccess(null);
+
+    const result = await uploadAndProcessDocument(file, machineId, type);
+
+    if (result.success) {
+      setUploadSuccess(file.name);
+      setTimeout(() => setUploadSuccess(null), 3000);
+    } else {
+      console.error("Upload failed:", result.error);
+    }
+
+    setUploading(false);
+    // Reset file input
+    e.target.value = "";
   }
 
   const qrUrl = typeof window !== "undefined"
@@ -218,12 +246,49 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
 
         {/* Documents Tab */}
         <TabsContent value="documents" className="mt-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.txt"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, "document")}
+          />
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, "photo")}
+          />
+
+          {uploadSuccess && (
+            <div className="mb-3 flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-4 py-2 text-sm text-green-800">
+              <CheckCircle className="h-4 w-4 shrink-0" />
+              {uploadSuccess}
+            </div>
+          )}
+
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 gap-2 rounded-xl">
-              <Upload className="h-4 w-4" />
+            <Button
+              variant="outline"
+              className="flex-1 gap-2 rounded-xl"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
               {t("uploadDocument")}
             </Button>
-            <Button variant="outline" className="flex-1 gap-2 rounded-xl">
+            <Button
+              variant="outline"
+              className="flex-1 gap-2 rounded-xl"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploading}
+            >
               <Camera className="h-4 w-4" />
               {t("uploadPhoto")}
             </Button>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { setRequestLocale } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { ChatContent } from "@/components/chat/chat-content";
@@ -12,7 +13,9 @@ export default async function ChatPage({
 
   return (
     <AppShell>
-      <ChatContent />
+      <Suspense>
+        <ChatContent />
+      </Suspense>
     </AppShell>
   );
 }

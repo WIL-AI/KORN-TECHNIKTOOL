@@ -67,6 +67,8 @@
     "contextAll": "Alle Maschinen",
     "contextMachine": "Aktuelle Maschine",
     "welcome": "Willkommen! Ich kann Ihnen Fragen zu Ihren Maschinen und deren Dokumentation beantworten.",
-    "noDocumentsHint": "Laden Sie zunächst Dokumente hoch, damit ich Ihnen helfen kann."
+    "noDocumentsHint": "Laden Sie zunächst Dokumente hoch, damit ich Ihnen helfen kann.",
+    "notConfigured": "Gemini API ist nicht konfiguriert. Bitte NEXT_PUBLIC_GEMINI_API_KEY in den Umgebungsvariablen setzen.",
+    "errorOccurred": "Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
   }
 }
