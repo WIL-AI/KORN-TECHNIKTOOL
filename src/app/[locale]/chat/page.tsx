@@ -1,9 +1,8 @@
-import { useTranslations } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
 import { AppShell } from "@/components/layout/app-shell";
-import { DashboardContent } from "@/components/dashboard-content";
+import { ChatContent } from "@/components/chat/chat-content";
 
-export default async function HomePage({
+export default async function ChatPage({
   params,
 }: {
   params: Promise<{ locale: string }>;
@@ -13,7 +12,7 @@ export default async function HomePage({
 
   return (
     <AppShell>
-      <DashboardContent />
+      <ChatContent />
     </AppShell>
   );
 }
