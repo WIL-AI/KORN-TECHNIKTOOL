@@ -76,7 +76,16 @@
     "dueToday": "Due today",
     "lastCompleted": "Last completed",
     "recurring": "Recurring",
-    "oneTime": "One-time"
+    "oneTime": "One-time",
+    "infos": "Infos",
+    "addInfo": "Add Info",
+    "infoTitle": "Title",
+    "infoTitlePlaceholder": "e.g. Startup quirk",
+    "infoText": "Description",
+    "infoTextPlaceholder": "Describe the machine-specific information...",
+    "infoAuthor": "Author (optional)",
+    "infoAuthorPlaceholder": "Your name",
+    "noInfos": "No info entries yet"
   },
   "scanner": {
     "title": "QR Scanner",

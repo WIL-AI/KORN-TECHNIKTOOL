@@ -375,6 +375,63 @@ export function getDocData(docId: string): string | null {
 }
 
 // ============================================================
+// MACHINE NOTES (employee knowledge base)
+// ============================================================
+
+const NOTES_KEY = "korn-machine-notes";
+
+export interface MachineNote {
+  id: string;
+  machineId: string;
+  title: string;
+  text: string;
+  author: string;
+  date: string;
+}
+
+function getUserNotes(): MachineNote[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(NOTES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setUserNotes(notes: MachineNote[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+}
+
+export function getNotesForMachine(machineId: string): MachineNote[] {
+  return getUserNotes().filter((n) => n.machineId === machineId);
+}
+
+export function addNote(machineId: string, title: string, text: string, author: string): MachineNote[] {
+  const notes = getUserNotes();
+  notes.unshift({
+    id: `note-${Date.now()}`,
+    machineId,
+    title,
+    text,
+    author,
+    date: new Date().toISOString().split("T")[0],
+  });
+  setUserNotes(notes);
+  return getNotesForMachine(machineId);
+}
+
+export function deleteNote(id: string): boolean {
+  const notes = getUserNotes();
+  const index = notes.findIndex((n) => n.id === id);
+  if (index === -1) return false;
+  notes.splice(index, 1);
+  setUserNotes(notes);
+  return true;
+}
+
+// ============================================================
 // LISTENERS
 // ============================================================
 

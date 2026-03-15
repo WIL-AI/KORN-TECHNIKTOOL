@@ -20,8 +20,12 @@ import {
   deleteLog,
   saveDocData,
   getDocData,
+  getNotesForMachine,
+  addNote,
+  deleteNote,
   type MaintenanceLog,
   type LocalDocument,
+  type MachineNote,
 } from "@/lib/machine-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +60,8 @@ import {
   RefreshCw,
   Link2,
   ExternalLink,
+  Info,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadAndProcessDocument } from "@/lib/ai/documents";
@@ -86,6 +92,7 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     setIntervals(getIntervalsForMachine(machineId));
     setLogs(getLogsForMachine(machineId));
     setLocalDocs(getDocsForMachine(machineId));
+    setMachineNotes(getNotesForMachine(machineId));
     setLoaded(true);
   }, [machineId]);
 
@@ -104,6 +111,13 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [newLinkName, setNewLinkName] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
+
+  // Machine notes state
+  const [machineNotes, setMachineNotes] = useState<MachineNote[]>([]);
+  const [noteInfoDialogOpen, setNoteInfoDialogOpen] = useState(false);
+  const [newInfoTitle, setNewInfoTitle] = useState("");
+  const [newInfoText, setNewInfoText] = useState("");
+  const [newInfoAuthor, setNewInfoAuthor] = useState("");
 
   // Interval state
   const [intervals, setIntervals] = useState<MaintenanceInterval[]>([]);
@@ -142,6 +156,21 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   function handleDeleteDoc(id: string) {
     deleteLocalDoc(id);
     setLocalDocs(getDocsForMachine(machineId));
+  }
+
+  function handleAddInfo() {
+    if (!newInfoTitle.trim() || !newInfoText.trim()) return;
+    const updated = addNote(machineId, newInfoTitle, newInfoText, newInfoAuthor.trim() || "—");
+    setMachineNotes(updated);
+    setNewInfoTitle("");
+    setNewInfoText("");
+    setNewInfoAuthor("");
+    setNoteInfoDialogOpen(false);
+  }
+
+  function handleDeleteInfo(id: string) {
+    deleteNote(id);
+    setMachineNotes(getNotesForMachine(machineId));
   }
 
   function handleAddLink() {
@@ -391,6 +420,10 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
           <TabsTrigger value="maintenance" className="flex-1 gap-2 rounded-lg">
             <ClipboardList className="h-4 w-4" />
             {t("maintenanceLog")}
+          </TabsTrigger>
+          <TabsTrigger value="infos" className="flex-1 gap-2 rounded-lg">
+            <Info className="h-4 w-4" />
+            {t("infos")}
           </TabsTrigger>
         </TabsList>
 
@@ -717,6 +750,95 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
           ) : (
             <div className="mt-8 text-center text-sm text-muted-foreground">
               {t("noLogs")}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Infos Tab */}
+        <TabsContent value="infos" className="mt-4">
+          <Dialog open={noteInfoDialogOpen} onOpenChange={setNoteInfoDialogOpen}>
+            <DialogTrigger className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              <Plus className="h-4 w-4" />
+              {t("addInfo")}
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t("addInfo")}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    {t("infoTitle")}
+                  </label>
+                  <Input
+                    value={newInfoTitle}
+                    onChange={(e) => setNewInfoTitle(e.target.value)}
+                    placeholder={t("infoTitlePlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    {t("infoText")}
+                  </label>
+                  <Textarea
+                    value={newInfoText}
+                    onChange={(e) => setNewInfoText(e.target.value)}
+                    placeholder={t("infoTextPlaceholder")}
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    {t("infoAuthor")}
+                  </label>
+                  <Input
+                    value={newInfoAuthor}
+                    onChange={(e) => setNewInfoAuthor(e.target.value)}
+                    placeholder={t("infoAuthorPlaceholder")}
+                  />
+                </div>
+                <Button onClick={handleAddInfo} className="w-full rounded-xl">
+                  {tCommon("save")}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {machineNotes.length > 0 ? (
+            <div className="mt-4 space-y-2">
+              {machineNotes.map((note) => (
+                <div key={note.id} className="rounded-xl border p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{note.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{note.text}</p>
+                      <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {note.author}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {note.date}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 shrink-0 p-0 text-destructive hover:bg-red-100"
+                      onClick={() => handleDeleteInfo(note.id)}
+                      title={tCommon("delete")}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-8 text-center text-sm text-muted-foreground">
+              {t("noInfos")}
             </div>
           )}
         </TabsContent>

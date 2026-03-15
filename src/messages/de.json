@@ -76,7 +76,16 @@
     "dueToday": "Heute fällig",
     "lastCompleted": "Zuletzt erledigt",
     "recurring": "Wiederkehrend",
-    "oneTime": "Einmalig"
+    "oneTime": "Einmalig",
+    "infos": "Infos",
+    "addInfo": "Info hinzufügen",
+    "infoTitle": "Titel",
+    "infoTitlePlaceholder": "z.B. Eigenheit beim Einschalten",
+    "infoText": "Beschreibung",
+    "infoTextPlaceholder": "Beschreiben Sie die Information zur Maschine...",
+    "infoAuthor": "Verfasser (optional)",
+    "infoAuthorPlaceholder": "Ihr Name",
+    "noInfos": "Noch keine Infos hinterlegt"
   },
   "scanner": {
     "title": "QR-Scanner",
