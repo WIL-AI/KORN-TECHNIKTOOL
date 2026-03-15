@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { demoMachines, type Machine } from "@/lib/demo-data";
+import type { Machine } from "@/lib/demo-data";
+import { getAllMachines, addMachineAndNotify } from "@/lib/machine-store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -30,21 +30,20 @@ const statusColors = {
   offline: "bg-red-500",
 };
 
-const statusBadge = {
-  online: "default" as const,
-  maintenance: "secondary" as const,
-  offline: "destructive" as const,
-};
-
 export function MachineListContent() {
   const t = useTranslations("machines");
   const tCommon = useTranslations("common");
   const [search, setSearch] = useState("");
-  const [machines, setMachines] = useState<Machine[]>(demoMachines);
+  const [machines, setMachines] = useState<Machine[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("");
   const [newLocation, setNewLocation] = useState("");
+
+  // Load machines from store (demo + localStorage) on mount
+  useEffect(() => {
+    setMachines(getAllMachines());
+  }, []);
 
   const filtered = machines.filter(
     (m) =>
@@ -55,16 +54,15 @@ export function MachineListContent() {
 
   function handleAddMachine() {
     if (!newName.trim()) return;
-    const newMachine: Machine = {
-      id: String(Date.now()),
+    const updated = addMachineAndNotify({
       name: newName,
       type: newType || "Unbekannt",
       location: newLocation || "—",
       status: "online",
       lastMaintenance: new Date().toISOString().split("T")[0],
       documentsCount: 0,
-    };
-    setMachines([newMachine, ...machines]);
+    });
+    setMachines(updated);
     setNewName("");
     setNewType("");
     setNewLocation("");

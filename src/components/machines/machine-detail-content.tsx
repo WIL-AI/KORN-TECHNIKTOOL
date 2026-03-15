@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
-import { demoMachines } from "@/lib/demo-data";
+import { Link, useRouter } from "@/i18n/navigation";
+import type { Machine } from "@/lib/demo-data";
+import { getMachineById, deleteMachine, isDeletable } from "@/lib/machine-store";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -29,6 +31,8 @@ import {
   Download,
   Loader2,
   CheckCircle,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadAndProcessDocument } from "@/lib/ai/documents";
@@ -55,8 +59,16 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   const t = useTranslations("machines");
   const tCommon = useTranslations("common");
   const tChat = useTranslations("chat");
+  const router = useRouter();
 
-  const machine = demoMachines.find((m) => m.id === machineId);
+  const [machine, setMachine] = useState<Machine | undefined>(undefined);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setMachine(getMachineById(machineId));
+    setLoaded(true);
+  }, [machineId]);
+
   const [showQr, setShowQr] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [logs, setLogs] = useState<MaintenanceEntry[]>([
@@ -73,6 +85,13 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const canDelete = isDeletable(machineId);
+
+  if (!loaded) return null;
 
   if (!machine) {
     return (
@@ -116,8 +135,14 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     }
 
     setUploading(false);
-    // Reset file input
     e.target.value = "";
+  }
+
+  function handleDelete() {
+    if (deleteConfirmText.trim().toLowerCase() !== "ja") return;
+    deleteMachine(machineId);
+    setDeleteDialogOpen(false);
+    router.push("/machines" as never);
   }
 
   const qrUrl = typeof window !== "undefined"
@@ -384,6 +409,57 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
           </Button>
         </Link>
       </div>
+
+      {/* Delete Button (only for user-added machines) */}
+      {canDelete && (
+        <div className="mt-3">
+          <Dialog
+            open={deleteDialogOpen}
+            onOpenChange={(open) => {
+              setDeleteDialogOpen(open);
+              if (!open) setDeleteConfirmText("");
+            }}
+          >
+            <DialogTrigger className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 text-sm font-medium text-destructive hover:bg-destructive hover:text-destructive-foreground">
+              <Trash2 className="h-4 w-4" />
+              {t("deleteMachine")}
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  {t("deleteConfirmTitle")}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <p className="text-sm text-muted-foreground">
+                  {t("deleteConfirmMessage", { name: machine.name })}
+                </p>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    {t("deleteConfirmLabel")}
+                  </label>
+                  <Input
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder={t("deleteConfirmPlaceholder")}
+                    className="rounded-xl"
+                  />
+                </div>
+                <Button
+                  onClick={handleDelete}
+                  disabled={deleteConfirmText.trim().toLowerCase() !== "ja"}
+                  variant="destructive"
+                  className="w-full rounded-xl"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {t("deleteConfirm")}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
     </div>
   );
 }

@@ -47,7 +47,13 @@
     "uploadDocument": "Upload Document",
     "uploadPhoto": "Upload Photo",
     "noDocuments": "No documents yet",
-    "noLogs": "No maintenance entries yet"
+    "noLogs": "No maintenance entries yet",
+    "deleteMachine": "Delete Machine",
+    "deleteConfirmTitle": "Really delete this machine?",
+    "deleteConfirmMessage": "The machine \"{name}\" and all associated data will be permanently deleted. This action cannot be undone.",
+    "deleteConfirmLabel": "Type \"Ja\" to confirm deletion:",
+    "deleteConfirmPlaceholder": "Ja",
+    "deleteConfirm": "Delete permanently"
   },
   "scanner": {
     "title": "QR Scanner",

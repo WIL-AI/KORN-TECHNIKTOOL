@@ -47,7 +47,13 @@
     "uploadDocument": "Dokument hochladen",
     "uploadPhoto": "Foto hochladen",
     "noDocuments": "Noch keine Dokumente vorhanden",
-    "noLogs": "Noch keine Wartungseinträge vorhanden"
+    "noLogs": "Noch keine Wartungseinträge vorhanden",
+    "deleteMachine": "Maschine löschen",
+    "deleteConfirmTitle": "Maschine wirklich löschen?",
+    "deleteConfirmMessage": "Die Maschine \"{name}\" und alle zugehörigen Daten werden unwiderruflich gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleteConfirmLabel": "Tippen Sie \"Ja\" ein, um das Löschen zu bestätigen:",
+    "deleteConfirmPlaceholder": "Ja",
+    "deleteConfirm": "Endgültig löschen"
   },
   "scanner": {
     "title": "QR-Scanner",
