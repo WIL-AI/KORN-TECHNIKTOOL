@@ -293,8 +293,9 @@ export interface LocalDocument {
   machineId: string;
   fileName: string;
   fileSize: string;
-  type: "document" | "photo";
+  type: "document" | "photo" | "link";
   date: string;
+  url?: string;
 }
 
 function getUserDocs(): LocalDocument[] {
@@ -335,6 +336,21 @@ export function addLocalDoc(machineId: string, fileName: string, fileSize: numbe
   });
   setUserDocs(docs);
   return { docs: getDocsForMachine(machineId), docId };
+}
+
+export function addLinkDoc(machineId: string, name: string, url: string): LocalDocument[] {
+  const docs = getUserDocs();
+  docs.unshift({
+    id: `doc-${Date.now()}`,
+    machineId,
+    fileName: name,
+    fileSize: "Link",
+    type: "link",
+    date: new Date().toISOString().split("T")[0],
+    url,
+  });
+  setUserDocs(docs);
+  return getDocsForMachine(machineId);
 }
 
 export function deleteLocalDoc(id: string): boolean {

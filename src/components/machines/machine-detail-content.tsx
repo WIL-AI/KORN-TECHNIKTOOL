@@ -15,6 +15,7 @@ import {
   addLog,
   getDocsForMachine,
   addLocalDoc,
+  addLinkDoc,
   deleteLocalDoc,
   deleteLog,
   saveDocData,
@@ -53,6 +54,8 @@ import {
   Clock,
   Check,
   RefreshCw,
+  Link2,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadAndProcessDocument } from "@/lib/ai/documents";
@@ -97,6 +100,11 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  // Link dialog state
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [newLinkName, setNewLinkName] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+
   // Interval state
   const [intervals, setIntervals] = useState<MaintenanceInterval[]>([]);
   const [intervalDialogOpen, setIntervalDialogOpen] = useState(false);
@@ -136,7 +144,24 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     setLocalDocs(getDocsForMachine(machineId));
   }
 
-  function handleOpenDoc(id: string) {
+  function handleAddLink() {
+    if (!newLinkName.trim() || !newLinkUrl.trim()) return;
+    let url = newLinkUrl.trim();
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    const updated = addLinkDoc(machineId, newLinkName, url);
+    setLocalDocs(updated);
+    setNewLinkName("");
+    setNewLinkUrl("");
+    setLinkDialogOpen(false);
+  }
+
+  function handleOpenDoc(id: string, doc?: LocalDocument) {
+    // Handle link-type documents
+    if (doc?.type === "link" && doc.url) {
+      window.open(doc.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+
     const dataUrl = getDocData(id);
     if (!dataUrl) return;
 
@@ -419,15 +444,55 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
             </Button>
           </div>
 
+          <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+            <DialogTrigger className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+              <Link2 className="h-4 w-4" />
+              {t("addLink")}
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t("addLink")}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    {t("linkName")}
+                  </label>
+                  <Input
+                    value={newLinkName}
+                    onChange={(e) => setNewLinkName(e.target.value)}
+                    placeholder={t("linkNamePlaceholder")}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">
+                    URL
+                  </label>
+                  <Input
+                    value={newLinkUrl}
+                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                    placeholder="https://..."
+                    type="url"
+                  />
+                </div>
+                <Button onClick={handleAddLink} className="w-full rounded-xl">
+                  {tCommon("save")}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {localDocs.length > 0 ? (
             <div className="mt-4 space-y-2">
               {localDocs.map((doc) => (
                 <div
                   key={doc.id}
                   className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:bg-accent transition-colors"
-                  onClick={() => handleOpenDoc(doc.id)}
+                  onClick={() => handleOpenDoc(doc.id, doc)}
                 >
-                  {doc.type === "photo" ? (
+                  {doc.type === "link" ? (
+                    <ExternalLink className="h-5 w-5 text-primary" />
+                  ) : doc.type === "photo" ? (
                     <Camera className="h-5 w-5 text-primary" />
                   ) : (
                     <FileText className="h-5 w-5 text-primary" />
