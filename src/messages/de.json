@@ -1,0 +1,72 @@
+{
+  "common": {
+    "appName": "Maschinenakte",
+    "loading": "Laden...",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "search": "Suchen",
+    "noResults": "Keine Ergebnisse gefunden",
+    "error": "Ein Fehler ist aufgetreten",
+    "success": "Erfolgreich gespeichert",
+    "upload": "Hochladen",
+    "back": "Zurück",
+    "language": "Sprache",
+    "german": "Deutsch",
+    "english": "English"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "machines": "Maschinen",
+    "scanner": "QR-Scanner",
+    "chat": "KI-Assistent",
+    "settings": "Einstellungen"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalMachines": "Maschinen gesamt",
+    "recentActivity": "Letzte Aktivitäten",
+    "pendingMaintenance": "Offene Wartungen",
+    "documentsUploaded": "Dokumente hochgeladen"
+  },
+  "machines": {
+    "title": "Maschinen",
+    "addMachine": "Maschine hinzufügen",
+    "name": "Maschinenname",
+    "type": "Maschinentyp",
+    "location": "Standort",
+    "status": "Status",
+    "lastMaintenance": "Letzte Wartung",
+    "qrCode": "QR-Code",
+    "generateQr": "QR-Code generieren",
+    "downloadQr": "QR-Code herunterladen",
+    "documents": "Dokumente",
+    "maintenanceLog": "Wartungsprotokoll",
+    "addNote": "Notiz hinzufügen",
+    "uploadDocument": "Dokument hochladen",
+    "uploadPhoto": "Foto hochladen",
+    "noDocuments": "Noch keine Dokumente vorhanden",
+    "noLogs": "Noch keine Wartungseinträge vorhanden"
+  },
+  "scanner": {
+    "title": "QR-Scanner",
+    "instruction": "Richten Sie die Kamera auf den QR-Code der Maschine",
+    "scanning": "Scanne...",
+    "found": "Maschine gefunden!",
+    "notFound": "QR-Code nicht erkannt",
+    "permissionDenied": "Kamerazugriff verweigert",
+    "startScan": "Scan starten",
+    "stopScan": "Scan stoppen"
+  },
+  "chat": {
+    "title": "KI-Assistent",
+    "placeholder": "Stellen Sie eine Frage zu Ihren Maschinen...",
+    "send": "Senden",
+    "thinking": "Denke nach...",
+    "contextAll": "Alle Maschinen",
+    "contextMachine": "Aktuelle Maschine",
+    "welcome": "Willkommen! Ich kann Ihnen Fragen zu Ihren Maschinen und deren Dokumentation beantworten.",
+    "noDocumentsHint": "Laden Sie zunächst Dokumente hoch, damit ich Ihnen helfen kann."
+  }
+}

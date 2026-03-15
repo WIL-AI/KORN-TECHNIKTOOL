@@ -1,0 +1,72 @@
+{
+  "common": {
+    "appName": "Machine File",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "noResults": "No results found",
+    "error": "An error occurred",
+    "success": "Successfully saved",
+    "upload": "Upload",
+    "back": "Back",
+    "language": "Language",
+    "german": "Deutsch",
+    "english": "English"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "machines": "Machines",
+    "scanner": "QR Scanner",
+    "chat": "AI Assistant",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalMachines": "Total Machines",
+    "recentActivity": "Recent Activity",
+    "pendingMaintenance": "Pending Maintenance",
+    "documentsUploaded": "Documents Uploaded"
+  },
+  "machines": {
+    "title": "Machines",
+    "addMachine": "Add Machine",
+    "name": "Machine Name",
+    "type": "Machine Type",
+    "location": "Location",
+    "status": "Status",
+    "lastMaintenance": "Last Maintenance",
+    "qrCode": "QR Code",
+    "generateQr": "Generate QR Code",
+    "downloadQr": "Download QR Code",
+    "documents": "Documents",
+    "maintenanceLog": "Maintenance Log",
+    "addNote": "Add Note",
+    "uploadDocument": "Upload Document",
+    "uploadPhoto": "Upload Photo",
+    "noDocuments": "No documents yet",
+    "noLogs": "No maintenance entries yet"
+  },
+  "scanner": {
+    "title": "QR Scanner",
+    "instruction": "Point your camera at the machine's QR code",
+    "scanning": "Scanning...",
+    "found": "Machine found!",
+    "notFound": "QR code not recognized",
+    "permissionDenied": "Camera access denied",
+    "startScan": "Start Scan",
+    "stopScan": "Stop Scan"
+  },
+  "chat": {
+    "title": "AI Assistant",
+    "placeholder": "Ask a question about your machines...",
+    "send": "Send",
+    "thinking": "Thinking...",
+    "contextAll": "All Machines",
+    "contextMachine": "Current Machine",
+    "welcome": "Welcome! I can answer questions about your machines and their documentation.",
+    "noDocumentsHint": "Please upload documents first so I can assist you."
+  }
+}
