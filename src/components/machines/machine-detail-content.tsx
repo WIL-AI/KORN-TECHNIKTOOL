@@ -139,14 +139,26 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
   function handleOpenDoc(id: string) {
     const dataUrl = getDocData(id);
     if (!dataUrl) return;
-    const newTab = window.open();
-    if (newTab) {
-      newTab.document.write(
-        dataUrl.startsWith("data:image")
-          ? `<html><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#111"><img src="${dataUrl}" style="max-width:100%;max-height:100vh;object-fit:contain"/></body></html>`
-          : `<html><body style="margin:0"><iframe src="${dataUrl}" style="width:100%;height:100vh;border:none"></iframe></body></html>`
-      );
-      newTab.document.close();
+
+    // Convert data URL to blob URL for reliable viewing (especially PDFs)
+    const [header, base64] = dataUrl.split(",");
+    const mime = header.match(/:(.*?);/)?.[1] || "application/octet-stream";
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mime });
+    const blobUrl = URL.createObjectURL(blob);
+
+    if (mime.startsWith("image/")) {
+      const newTab = window.open();
+      if (newTab) {
+        newTab.document.write(
+          `<html><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#111"><img src="${blobUrl}" style="max-width:100%;max-height:100vh;object-fit:contain"/></body></html>`
+        );
+        newTab.document.close();
+      }
+    } else {
+      window.open(blobUrl, "_blank");
     }
   }
 
