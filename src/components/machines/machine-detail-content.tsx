@@ -15,6 +15,10 @@ import {
   addLog,
   getDocsForMachine,
   addLocalDoc,
+  deleteLocalDoc,
+  deleteLog,
+  saveDocData,
+  getDocData,
   type MaintenanceLog,
   type LocalDocument,
 } from "@/lib/machine-store";
@@ -122,6 +126,30 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     setNoteDialogOpen(false);
   }
 
+  function handleDeleteLog(id: string) {
+    deleteLog(id);
+    setLogs(getLogsForMachine(machineId));
+  }
+
+  function handleDeleteDoc(id: string) {
+    deleteLocalDoc(id);
+    setLocalDocs(getDocsForMachine(machineId));
+  }
+
+  function handleOpenDoc(id: string) {
+    const dataUrl = getDocData(id);
+    if (!dataUrl) return;
+    const newTab = window.open();
+    if (newTab) {
+      newTab.document.write(
+        dataUrl.startsWith("data:image")
+          ? `<html><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#111"><img src="${dataUrl}" style="max-width:100%;max-height:100vh;object-fit:contain"/></body></html>`
+          : `<html><body style="margin:0"><iframe src="${dataUrl}" style="width:100%;height:100vh;border:none"></iframe></body></html>`
+      );
+      newTab.document.close();
+    }
+  }
+
   async function handleFileUpload(
     e: React.ChangeEvent<HTMLInputElement>,
     type: "document" | "photo"
@@ -141,8 +169,18 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
     }
 
     // Always record locally so user sees the document
-    const updated = addLocalDoc(machineId, file.name, file.size, type);
+    const { docs: updated, docId } = addLocalDoc(machineId, file.name, file.size, type);
     setLocalDocs(updated);
+
+    // Store file content as data URL for later viewing
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        saveDocData(docId, reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+
     setUploadSuccess(file.name);
     setTimeout(() => setUploadSuccess(null), 3000);
 
@@ -374,19 +412,29 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
               {localDocs.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center gap-3 rounded-xl border p-3"
+                  className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => handleOpenDoc(doc.id)}
                 >
                   {doc.type === "photo" ? (
                     <Camera className="h-5 w-5 text-primary" />
                   ) : (
                     <FileText className="h-5 w-5 text-primary" />
                   )}
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{doc.fileName}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{doc.fileName}</p>
                     <p className="text-xs text-muted-foreground">
                       {doc.fileSize} &middot; {doc.date}
                     </p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 shrink-0 p-0 text-destructive hover:bg-red-100"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteDoc(doc.id); }}
+                    title={tCommon("delete")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
             </div>
@@ -566,11 +614,26 @@ export function MachineDetailContent({ machineId }: { machineId: string }) {
             <div className="mt-4 space-y-2">
               {logs.map((entry) => (
                 <div key={entry.id} className="rounded-xl border p-3">
-                  <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    {entry.date}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {entry.date}
+                      </div>
+                      <p className="text-sm">{entry.note}</p>
+                    </div>
+                    {!entry.id.startsWith("log-d") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 shrink-0 p-0 text-destructive hover:bg-red-100"
+                        onClick={() => handleDeleteLog(entry.id)}
+                        title={tCommon("delete")}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  <p className="text-sm">{entry.note}</p>
                 </div>
               ))}
             </div>

@@ -275,6 +275,15 @@ export function addLog(machineId: string, note: string): MaintenanceLog[] {
   return getLogsForMachine(machineId);
 }
 
+export function deleteLog(id: string): boolean {
+  const logs = getUserLogs();
+  const index = logs.findIndex((l) => l.id === id);
+  if (index === -1) return false;
+  logs.splice(index, 1);
+  setUserLogs(logs);
+  return true;
+}
+
 // ============================================================
 // LOCAL DOCUMENTS (localStorage fallback)
 // ============================================================
@@ -313,10 +322,11 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function addLocalDoc(machineId: string, fileName: string, fileSize: number, type: "document" | "photo"): LocalDocument[] {
+export function addLocalDoc(machineId: string, fileName: string, fileSize: number, type: "document" | "photo"): { docs: LocalDocument[]; docId: string } {
   const docs = getUserDocs();
+  const docId = `doc-${Date.now()}`;
   docs.unshift({
-    id: `doc-${Date.now()}`,
+    id: docId,
     machineId,
     fileName,
     fileSize: formatFileSize(fileSize),
@@ -324,7 +334,7 @@ export function addLocalDoc(machineId: string, fileName: string, fileSize: numbe
     date: new Date().toISOString().split("T")[0],
   });
   setUserDocs(docs);
-  return getDocsForMachine(machineId);
+  return { docs: getDocsForMachine(machineId), docId };
 }
 
 export function deleteLocalDoc(id: string): boolean {
@@ -333,7 +343,19 @@ export function deleteLocalDoc(id: string): boolean {
   if (index === -1) return false;
   docs.splice(index, 1);
   setUserDocs(docs);
+  // Clean up stored file data
+  try { localStorage.removeItem(`korn-doc-data-${id}`); } catch {}
   return true;
+}
+
+export function saveDocData(docId: string, dataUrl: string): void {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(`korn-doc-data-${docId}`, dataUrl); } catch {}
+}
+
+export function getDocData(docId: string): string | null {
+  if (typeof window === "undefined") return null;
+  try { return localStorage.getItem(`korn-doc-data-${docId}`); } catch { return null; }
 }
 
 // ============================================================
